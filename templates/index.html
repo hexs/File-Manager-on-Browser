@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Explorer</title>
+    <style>
+        .context-menu {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+
+        .context-menu ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .context-menu li {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .context-menu li:hover {
+            background-color: #e9e9e9;
+        }
+    </style>
+</head>
+<body>
+<h1>File Explorer</h1>
+<h2>Current Path: {{ current_path }}</h2>
+
+<h3>Directories:</h3>
+<ul id="directory-list">
+    {% if current_path %}
+        <li><a href="{{ url_for('index', subpath='/'.join(current_path.split('/')[:-1])) }}">..</a></li>
+    {% endif %}
+    {% for directory in directories %}
+        <li><a href="{{ url_for('index', subpath=current_path + '/' + directory) }}"
+               data-path="{{ current_path + '/' + directory }}">{{ directory }}</a></li>
+    {% endfor %}
+</ul>
+
+<h3>Files:</h3>
+<ul id="file-list">
+    {% for file in files %}
+        <li><a href="{{ url_for('index', subpath=current_path + '/' + file) }}"
+               data-path="{{ current_path + '/' + file }}">{{ file }}</a></li>
+    {% endfor %}
+</ul>
+
+<h3>Upload File:</h3>
+<form method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+    <input type="file" name="file">
+    <input type="hidden" name="current_path" value="{{ current_path }}">
+    <input type="submit" value="Upload">
+</form>
+
+
+<div id="context-menu" class="context-menu">
+    <ul>
+        <li id="download-option">Download</li>
+        <li id="rename-option">Rename</li>
+        <li id="delete-option">Delete</li>
+    </ul>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        let selectedItem = null;
+
+        // Show context menu on right-click
+        $('#directory-list, #file-list').on('contextmenu', 'a', function (e) {
+            e.preventDefault();
+            selectedItem = $(this);
+            $('#context-menu').css({
+                display: 'block',
+                left: e.pageX,
+                top: e.pageY
+            });
+        });
+
+        // Hide context menu when clicking elsewhere
+        $(document).on('click', function () {
+            $('#context-menu').hide();
+        });
+
+        // Download option
+        $('#download-option').click(function () {
+            const path = selectedItem.data('path');
+            window.location.href = `/download?path=${encodeURIComponent(path)}`;
+        });
+
+        // Rename option
+        $('#rename-option').click(function () {
+            const newName = prompt('Enter new name:');
+            if (newName) {
+                const oldPath = selectedItem.data('path');
+                const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newName;
+                $.post('/rename', {old_path: oldPath, new_path: newPath}, function () {
+                    location.reload();
+                });
+            }
+        });
+
+        // Delete option
+        $('#delete-option').click(function () {
+            if (confirm('Are you sure you want to delete this item?')) {
+                $.post('/delete', {path: selectedItem.data('path')}, function () {
+                    location.reload();
+                });
+            }
+        });
+    });
+</script>
+</body>
+</html>
