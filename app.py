@@ -6,13 +6,17 @@ import io
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-ROOT_DIR = "C:/"
+
+if os.name == 'nt':  # Windows
+    ROOT_DIR = "C:\\"
+else:  # Linux
+    ROOT_DIR = "/"
 
 
 @app.route('/')
 @app.route('/<path:subpath>')
 def index(subpath=''):
-    current_path = os.path.join(ROOT_DIR, subpath)
+    current_path = os.path.normpath(os.path.join(ROOT_DIR, subpath))
     if not os.path.exists(current_path):
         abort(404, description="Path does not exist")
 
@@ -28,12 +32,13 @@ def index(subpath=''):
         elif item.is_dir():
             directories.append(item.name)
 
-    return render_template('index.html', files=files, directories=directories, current_path=subpath)
+    return render_template('index.html', files=files, directories=directories,
+                           current_path=os.path.relpath(current_path, ROOT_DIR))
 
 
 @app.route('/create_folder', methods=['POST'])
 def create_folder():
-    folder_path = os.path.join(ROOT_DIR, request.form['path'])
+    folder_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['path']))
     try:
         os.makedirs(folder_path, exist_ok=True)
         return jsonify(success=True)
@@ -50,14 +55,14 @@ def upload_file():
         return redirect(request.url)
     if file:
         filename = secure_filename(file.filename)
-        file_path = os.path.join(ROOT_DIR, request.form['current_path'], filename)
+        file_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['current_path'], filename))
         file.save(file_path)
     return redirect(url_for('index', subpath=request.form['current_path']))
 
 
 @app.route('/delete', methods=['POST'])
 def delete_item():
-    item_path = os.path.join(ROOT_DIR, request.form['path'])
+    item_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['path']))
     try:
         if os.path.isfile(item_path):
             os.remove(item_path)
@@ -70,8 +75,8 @@ def delete_item():
 
 @app.route('/rename', methods=['POST'])
 def rename_item():
-    old_path = os.path.join(ROOT_DIR, request.form['old_path'])
-    new_path = os.path.join(ROOT_DIR, request.form['new_path'])
+    old_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['old_path']))
+    new_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['new_path']))
     try:
         os.rename(old_path, new_path)
         return jsonify(success=True)
@@ -81,7 +86,7 @@ def rename_item():
 
 @app.route('/download', methods=['GET'])
 def download_item():
-    item_path = os.path.join(ROOT_DIR, request.args.get('path'))
+    item_path = os.path.normpath(os.path.join(ROOT_DIR, request.args.get('path')))
     if os.path.isfile(item_path):
         return send_file(item_path, as_attachment=True)
     elif os.path.isdir(item_path):
@@ -100,7 +105,7 @@ def download_item():
 
 @app.route('/edit', methods=['GET', 'POST'])
 def edit_file():
-    file_path = os.path.join(ROOT_DIR, request.args.get('path'))
+    file_path = os.path.normpath(os.path.join(ROOT_DIR, request.args.get('path')))
 
     if request.method == 'POST':
         content = request.form.get('content')
@@ -125,13 +130,11 @@ def edit_file():
 
 @app.route('/extract_file', methods=['POST'])
 def extract_file():
-    zip_path = os.path.join(ROOT_DIR, request.form['path'])
-    # Get the folder name for extraction
+    zip_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['path']))
     folder_name = request.form.get('folder_name', 'extracted_files')
-    extract_path = os.path.join(os.path.dirname(zip_path), folder_name)
+    extract_path = os.path.normpath(os.path.join(os.path.dirname(zip_path), folder_name))
 
     try:
-        # Create the extraction folder
         os.makedirs(extract_path, exist_ok=True)
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)

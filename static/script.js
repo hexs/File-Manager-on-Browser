@@ -60,7 +60,7 @@ $(document).ready(function () {
     function createFolder() {
         const folderName = prompt('Enter folder name:');
         if (folderName) {
-            const path = $('#upload-form input[name="current_path"]').val() + '/' + folderName;
+            const path = ($('#upload-form input[name="current_path"]').val() + '/' + folderName).replace(/\\/g, '/');
             $.post('/create_folder', {path: path})
                 .done(function (data) {
                     if (data.success) {
@@ -107,11 +107,11 @@ $(document).ready(function () {
         let path;
 
         if (isNewFile) {
-            path = $('#upload-form input[name="current_path"]').val() + '/' + fileName;
+            path = ($('#upload-form input[name="current_path"]').val() + '/' + fileName).replace(/\\/g, '/');
         } else {
             const oldPath = selectedItem.data('path');
             const directory = oldPath.substring(0, oldPath.lastIndexOf('/') + 1);
-            path = directory + fileName;
+            path = (directory + fileName).replace(/\\/g, '/');
         }
 
         $.post(`/edit?path=${encodeURIComponent(path)}`, {content: content})
