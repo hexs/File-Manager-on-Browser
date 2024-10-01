@@ -4,42 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Explorer</title>
-     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<h1>File Explorer</h1>
-<h3>Upload File:</h3>
-<form method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
-    <input type="file" name="file" id="file-upload">
-    <input type="hidden" name="current_path" value="{{ current_path }}">
-    <input type="submit" value="Upload" class="btn">
-    <button type="button" id="create-file-btn" class="btn">Create file</button>
-</form>
-<p>Current Path: {{ current_path }}</p>
-<h3>Directories:</h3>
-<ul id="directory-list">
-    {% if current_path %}
-        <li><a href="{{ url_for('index', subpath='/'.join(current_path.split('/')[:-1])) }}">..</a></li>
-    {% endif %}
-    {% for directory in directories %}
-        <li><a href="{{ url_for('index', subpath=current_path + '/' + directory) }}"
-               data-path="{{ current_path + '/' + directory }}">{{ directory }}</a></li>
-    {% endfor %}
-</ul>
-<h3>Files:</h3>
-<ul id="file-list">
-    {% for file in files %}
-        <li><a href="{{ url_for('index', subpath=current_path + '/' + file) }}"
-               data-path="{{ current_path + '/' + file }}">{{ file }}</a></li>
-    {% endfor %}
-</ul>
-
+<header>
+    <form method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+        <input type="file" name="file" id="file-upload">
+        <input type="hidden" name="current_path" value="{{ current_path }}">
+        <input type="submit" value="Upload" class="btn">
+        <button type="button" id="create-file-btn" class="btn">Create file</button>
+        <button type="button" id="create-folder-btn" class="btn">Create folder</button>
+    </form>
+    {{ current_path }}
+</header>
+<div class="main-content">
+    <h3>Directories:</h3>
+    <ul id="directory-list">
+        {% if current_path %}
+            <li><a href="{{ url_for('index', subpath='/'.join(current_path.split('/')[:-1])) }}">..</a></li>
+        {% endif %}
+        {% for directory in directories %}
+            <li><a href="{{ url_for('index', subpath=current_path + '/' + directory) }}"
+                   data-path="{{ current_path + '/' + directory }}">{{ directory }}</a></li>
+        {% endfor %}
+    </ul>
+    <h3>Files:</h3>
+    <ul id="file-list">
+        {% for file in files %}
+            <li><a href="{{ url_for('index', subpath=current_path + '/' + file) }}"
+                   data-path="{{ current_path + '/' + file }}">{{ file }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
 <div id="context-menu" class="context-menu">
     <ul>
         <li id="download-option">Download</li>
         <li id="rename-option">Rename</li>
         <li id="delete-option">Delete</li>
         <li id="edit-option">Edit</li>
+        <li id="extract-option">Extract</li>
     </ul>
 </div>
 <div id="edit-modal">
@@ -61,49 +64,20 @@
         let selectedItem = null;
         let isNewFile = false;
 
-        function showContextMenu(e, target) {
-            e.preventDefault();
-            selectedItem = $(target);
-            $('#context-menu').css({
-                display: 'block',
-                left: e.pageX,
-                top: e.pageY
-            });
-            updateContextMenu(target);
-        }
-
-        function hideContextMenu() {
-            $('#context-menu').hide();
-        }
-
-        function downloadItem() {
-            const path = selectedItem.data('path');
-            window.location.href = `/download?path=${encodeURIComponent(path)}`;
-        }
-
-        function renameItem() {
-            const newName = prompt('Enter new name:');
-            if (newName) {
-                const oldPath = selectedItem.data('path');
-                const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newName;
-                $.post('/rename', {old_path: oldPath, new_path: newPath})
-                    .done(function () {
-                        location.reload();
+        function createFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName) {
+                const path = '{{ current_path }}/' + folderName;
+                $.post('/create_folder', {path: path})
+                    .done(function (data) {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Failed to create folder');
+                        }
                     })
                     .fail(function (jqXHR, textStatus, errorThrown) {
-                        alert(`Failed to rename: ${errorThrown}`);
-                    });
-            }
-        }
-
-        function deleteItem() {
-            if (confirm('Are you sure you want to delete this item?')) {
-                $.post('/delete', {path: selectedItem.data('path')})
-                    .done(function () {
-                        location.reload();
-                    })
-                    .fail(function (jqXHR, textStatus, errorThrown) {
-                        alert(`Failed to delete: ${errorThrown}`);
+                        alert(`Failed to create folder: ${errorThrown}`);
                     });
             }
         }
@@ -162,11 +136,79 @@
                 });
         }
 
+
+        function showContextMenu(e, target) {
+            e.preventDefault();
+            selectedItem = $(target);
+            $('#context-menu').css({
+                display: 'block',
+                left: e.pageX,
+                top: e.pageY
+            });
+            updateContextMenu(target);
+        }
+
+        function hideContextMenu() {
+            $('#context-menu').hide();
+        }
+
         function updateContextMenu(target) {
             const path = $(target).data('path');
-            const isTextFile = path.match(/\.(txt|md|js|py|html|css|json|xml|csv|log)$/i);
+            const isTextFile = path.match(/\.(txt|md|js|py|html|css|json|xml|csv|log|gitignore)$/i);
+            const isZipFile = path.endsWith('.zip');
             $('#edit-option').toggle(isTextFile !== null);
+            $('#extract-option').toggle(isZipFile);
         }
+
+        function downloadItem() {
+            const path = selectedItem.data('path');
+            window.location.href = `/download?path=${encodeURIComponent(path)}`;
+        }
+
+        function renameItem() {
+            const newName = prompt('Enter new name:');
+            if (newName) {
+                const oldPath = selectedItem.data('path');
+                const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newName;
+                $.post('/rename', {old_path: oldPath, new_path: newPath})
+                    .done(function () {
+                        location.reload();
+                    })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        alert(`Failed to rename: ${errorThrown}`);
+                    });
+            }
+        }
+
+        function deleteItem() {
+            if (confirm('Are you sure you want to delete this item?')) {
+                $.post('/delete', {path: selectedItem.data('path')})
+                    .done(function () {
+                        location.reload();
+                    })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        alert(`Failed to delete: ${errorThrown}`);
+                    });
+            }
+        }
+
+        function extractFile() {
+            const path = selectedItem.data('path');
+            const folderName = prompt('Enter a folder name for extraction:');
+            $.post('/extract_file', {path: path, folder_name: folderName})
+                .done(function (data) {
+                    if (data.success) {
+                        alert('File extracted successfully');
+                        location.reload();
+                    } else {
+                        alert('Failed to extract file: ' + data.error);
+                    }
+                })
+                .fail(function (jqXHR, textStatus, errorThrown) {
+                    alert(`Failed to extract file: ${errorThrown}`);
+                });
+        }
+
 
         $('#directory-list, #file-list').on('contextmenu', 'a', function (e) {
             showContextMenu(e, this);
@@ -177,8 +219,11 @@
         $('#download-option').click(downloadItem);
         $('#rename-option').click(renameItem);
         $('#delete-option').click(deleteItem);
-        $('#create-file-btn').click(createFile);
         $('#edit-option').click(editFile);
+        $('#extract-option').click(extractFile);
+
+        $('#create-folder-btn').click(createFolder);
+        $('#create-file-btn').click(createFile);
         $('#save-edit').click(saveEdit);
         $('#cancel-edit').click(function () {
             $('#edit-modal').hide();

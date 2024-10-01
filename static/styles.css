@@ -1,8 +1,19 @@
 body {
     font-family: Arial, sans-serif;
-    line-height: 1.6;
+    line-height: 1.4;
     margin: 0;
-    padding: 20px;
+}
+
+header {
+    background-color: #eee;
+    position: sticky;
+    top: 0;
+    padding: 10px;
+
+}
+
+.main-content {
+    padding: 10px;
 }
 
 h1, h3 {

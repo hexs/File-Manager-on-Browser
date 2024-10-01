@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for, jsonify, abort
-import mimetypes
 import os
 import shutil
 import zipfile
@@ -30,6 +29,16 @@ def index(subpath=''):
             directories.append(item.name)
 
     return render_template('index.html', files=files, directories=directories, current_path=subpath)
+
+
+@app.route('/create_folder', methods=['POST'])
+def create_folder():
+    folder_path = os.path.join(ROOT_DIR, request.form['path'])
+    try:
+        os.makedirs(folder_path, exist_ok=True)
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
 
 
 @app.route('/upload', methods=['POST'])
@@ -104,18 +113,6 @@ def edit_file():
             return jsonify(success=False, error=str(e)), 500
     else:
         if os.path.isfile(file_path):
-            file_extension = os.path.splitext(file_path)[1].lower()
-            mime_type, _ = mimetypes.guess_type(file_path)
-
-            allowed_extensions = ['.py', '.json', '.js', '.txt', '.gitignore']
-            allowed_mime_types = ['text/', 'application/json']
-
-            is_allowed = (file_extension in allowed_extensions or
-                          (mime_type and any(mime_type.startswith(t) for t in allowed_mime_types)))
-
-            if not is_allowed:
-                return jsonify(success=False, message="Not an editable file type"), 400
-
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
@@ -124,6 +121,23 @@ def edit_file():
                 return jsonify(success=False, error=str(e)), 500
         else:
             return jsonify(success=True, content='')
+
+
+@app.route('/extract_file', methods=['POST'])
+def extract_file():
+    zip_path = os.path.join(ROOT_DIR, request.form['path'])
+    # Get the folder name for extraction
+    folder_name = request.form.get('folder_name', 'extracted_files')
+    extract_path = os.path.join(os.path.dirname(zip_path), folder_name)
+
+    try:
+        # Create the extraction folder
+        os.makedirs(extract_path, exist_ok=True)
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
 
 
 if __name__ == '__main__':
