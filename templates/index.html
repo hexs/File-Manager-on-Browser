@@ -15,23 +15,25 @@
         <button type="button" id="create-file-btn" class="btn">Create file</button>
         <button type="button" id="create-folder-btn" class="btn">Create folder</button>
     </form>
-    {{ current_path }}
 </header>
 <div class="main-content">
+    <p>Current Path: {{ current_path.replace('\\', '/') }}</p>
     <h3>Directories:</h3>
     <ul id="directory-list">
         {% if current_path %}
-            <li><a href="{{ url_for('index', subpath='/'.join(current_path.split('/')[:-1])) }}">..</a></li>
+            <li>
+                <a href="{{ url_for('path', subpath='/'.join(current_path.replace('\\', '/').split('/')[:-1])) }}">..</a>
+            </li>
         {% endif %}
         {% for directory in directories %}
-            <li><a href="{{ url_for('index', subpath=(current_path + '/' + directory).replace('\\', '/')) }}"
+            <li><a href="{{ url_for('path', subpath=(current_path + '/' + directory).replace('\\', '/')) }}"
                    data-path="{{ (current_path + '/' + directory).replace('\\', '/') }}">{{ directory }}</a></li>
         {% endfor %}
     </ul>
     <h3>Files:</h3>
     <ul id="file-list">
         {% for file in files %}
-            <li><a href="{{ url_for('index', subpath=(current_path + '/' + file).replace('\\', '/')) }}"
+            <li><a href="{{ url_for('path', subpath=(current_path + '/' + file).replace('\\', '/')) }}"
                    data-path="{{ (current_path + '/' + file).replace('\\', '/') }}">{{ file }}</a></li>
         {% endfor %}
     </ul>

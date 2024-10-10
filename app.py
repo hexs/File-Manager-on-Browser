@@ -7,16 +7,19 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-if os.name == 'nt':  # Windows
-    ROOT_DIR = "C:\\"
-else:  # Linux
-    ROOT_DIR = "/"
+ROOT_DIR = "/"
 
 
 @app.route('/')
-@app.route('/<path:subpath>')
-def index(subpath=''):
-    current_path = os.path.normpath(os.path.join(ROOT_DIR, subpath))
+def root():
+    return redirect(url_for('path'))
+
+
+@app.route('/path/')
+@app.route('/path/<path:subpath>')
+def path(subpath=''):
+    current_path = os.path.normpath(os.path.join(ROOT_DIR, subpath)).replace(os.sep, '/')
+
     if not os.path.exists(current_path):
         abort(404, description="Path does not exist")
 
@@ -57,7 +60,7 @@ def upload_file():
         filename = secure_filename(file.filename)
         file_path = os.path.normpath(os.path.join(ROOT_DIR, request.form['current_path'], filename))
         file.save(file_path)
-    return redirect(url_for('index', subpath=request.form['current_path']))
+    return redirect(url_for('path', subpath=request.form['current_path']))
 
 
 @app.route('/delete', methods=['POST'])
@@ -84,7 +87,7 @@ def rename_item():
         return jsonify(success=False, error=str(e)), 500
 
 
-@app.route('/download', methods=['GET'])
+@app.route('/download', methods=['GET'])  # error if download in directories
 def download_item():
     item_path = os.path.normpath(os.path.join(ROOT_DIR, request.args.get('path')))
     if os.path.isfile(item_path):
@@ -106,7 +109,6 @@ def download_item():
 @app.route('/edit', methods=['GET', 'POST'])
 def edit_file():
     file_path = os.path.normpath(os.path.join(ROOT_DIR, request.args.get('path')))
-
     if request.method == 'POST':
         content = request.form.get('content')
         try:
@@ -144,4 +146,4 @@ def extract_file():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run('192.168.225.137', 5000, debug=True)
